@@ -11,7 +11,7 @@ export default function HistoryPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <a
-            href="https://github.com/persistence-dev/persistence-events/actions/workflows/scrape.yml"
+            href="https://github.com/prakhar-mall-persistence/persistence-events/actions/workflows/scrape.yml"
             target="_blank"
             rel="noreferrer"
             className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700 dark:bg-white dark:text-slate-900"
@@ -19,7 +19,7 @@ export default function HistoryPage() {
             Fetch new events
           </a>
           <a
-            href="https://github.com/persistence-dev/persistence-events/actions/workflows/newsletter.yml"
+            href="https://github.com/prakhar-mall-persistence/persistence-events/actions/workflows/newsletter.yml"
             target="_blank"
             rel="noreferrer"
             className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
