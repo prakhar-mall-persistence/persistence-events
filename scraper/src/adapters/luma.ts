@@ -7,7 +7,8 @@ import { getContext } from "../lib/browser.js";
  * Strategy: open the city discovery page (lu.ma/<slug>) and capture the JSON returned by
  * Luma's internal discover API (api.lu.ma/.../get-featured-items or calendar feeds), which
  * the page fetches on load. We intercept those responses instead of brittle DOM scraping.
- * Falls back to the embedded Next.js data if no API response is seen.
+ * Luma also renders each discovery item as schema.org/Event JSON-LD. That is our
+ * dependable fallback when its private discovery endpoint changes.
  *
  * This is deliberately isolated + defensive: any failure returns [] so one broken selector
  * never fails the whole scrape run.
@@ -38,32 +39,35 @@ export const lumaAdapter: SourceAdapter = {
       await page.goto(`https://lu.ma/${slug}`, { waitUntil: "networkidle", timeout: 45000 });
       await page.waitForTimeout(2500);
 
-      const entries = extractEntries(captured);
+      let entries = extractEntries(captured);
+      if (entries.length === 0) entries = await extractJsonLdEvents(page);
       for (const e of entries) {
         const ev = e.event ?? e;
         if (!ev?.api_id && !ev?.url) continue;
+        const location = ev.geo_address_info ?? ev.location ?? {};
+        const image = Array.isArray(ev.image) ? ev.image[0] : ev.image;
         out.push({
           source: "luma",
           sourceEventId: String(ev.api_id ?? ev.url),
           title: ev.name ?? "Untitled",
           description: ev.description_short ?? ev.description ?? null,
           url: ev.url ? (ev.url.startsWith("http") ? ev.url : `https://lu.ma/${ev.url}`) : `https://lu.ma/${slug}`,
-          startAt: ev.start_at ? new Date(ev.start_at) : null,
-          endAt: ev.end_at ? new Date(ev.end_at) : null,
+          startAt: ev.start_at ? new Date(ev.start_at) : ev.startDate ? new Date(ev.startDate) : null,
+          endAt: ev.end_at ? new Date(ev.end_at) : ev.endDate ? new Date(ev.endDate) : null,
           timezone: ev.timezone ?? null,
-          venue: ev.geo_address_info?.address ?? ev.location_name ?? null,
-          city: ev.geo_address_info?.city ?? geo.city,
-          country: ev.geo_address_info?.country ?? geo.country,
-          isOnline: !!ev.is_online || ev.location_type === "online",
+          venue: location.address ?? location.name ?? ev.location_name ?? null,
+          city: location.city ?? geo.city,
+          country: location.country ?? geo.country,
+          isOnline: !!ev.is_online || ev.location_type === "online" || ev.eventAttendanceMode?.includes("Online"),
           organizer: ev.hosts?.[0]?.name ?? null,
-          imageUrl: ev.cover_url ?? null,
+          imageUrl: ev.cover_url ?? image ?? null,
           tags: (ev.categories ?? []).map((c: any) => c.name ?? c).filter(Boolean),
           price: ev.is_free ? "Free" : null,
           raw: ev,
         });
       }
-    } catch {
-      /* return whatever we have */
+    } catch (error) {
+      console.warn(`Luma @ ${geo.city} failed: ${(error as Error).message}`);
     } finally {
       await page.close();
       await ctx.close();
@@ -88,4 +92,20 @@ function extractEntries(blobs: any[]): any[] {
     }
   }
   return entries;
+}
+
+/** Read Luma's public, browser-visible Event metadata if no private API response was captured. */
+async function extractJsonLdEvents(page: import("playwright").Page): Promise<any[]> {
+  const scripts = await page.locator('script[type="application/ld+json"]').allTextContents();
+  const events: any[] = [];
+  for (const raw of scripts) {
+    try {
+      const parsed = JSON.parse(raw);
+      const values = Array.isArray(parsed) ? parsed : parsed?.["@graph"] ?? [parsed];
+      for (const value of values) if (value?.["@type"] === "Event") events.push(value);
+    } catch {
+      // Skip a malformed script; other events can still be collected.
+    }
+  }
+  return events;
 }
