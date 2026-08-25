@@ -45,6 +45,7 @@ export const lumaAdapter: SourceAdapter = {
         const ev = e.event ?? e;
         if (!ev?.api_id && !ev?.url) continue;
         const location = ev.geo_address_info ?? ev.location ?? {};
+        const address = location.address ?? location;
         const image = Array.isArray(ev.image) ? ev.image[0] : ev.image;
         out.push({
           source: "luma",
@@ -55,11 +56,11 @@ export const lumaAdapter: SourceAdapter = {
           startAt: ev.start_at ? new Date(ev.start_at) : ev.startDate ? new Date(ev.startDate) : null,
           endAt: ev.end_at ? new Date(ev.end_at) : ev.endDate ? new Date(ev.endDate) : null,
           timezone: ev.timezone ?? null,
-          venue: location.address ?? location.name ?? ev.location_name ?? null,
-          city: location.city ?? geo.city,
-          country: location.country ?? geo.country,
+          venue: location.name ?? address.streetAddress ?? ev.location_name ?? null,
+          city: address.addressLocality ?? location.city ?? geo.city,
+          country: address.addressCountry ?? location.country ?? geo.country,
           isOnline: !!ev.is_online || ev.location_type === "online" || ev.eventAttendanceMode?.includes("Online"),
-          organizer: ev.hosts?.[0]?.name ?? null,
+          organizer: ev.hosts?.[0]?.name ?? ev.organizer?.[0]?.name ?? ev.organizer?.name ?? null,
           imageUrl: ev.cover_url ?? image ?? null,
           tags: (ev.categories ?? []).map((c: any) => c.name ?? c).filter(Boolean),
           price: ev.is_free ? "Free" : null,
@@ -98,11 +99,29 @@ function extractEntries(blobs: any[]): any[] {
 async function extractJsonLdEvents(page: import("playwright").Page): Promise<any[]> {
   const scripts = await page.locator('script[type="application/ld+json"]').allTextContents();
   const events: any[] = [];
+  const seen = new Set<string>();
+
+  const visit = (value: any) => {
+    if (!value || typeof value !== "object") return;
+    const types = Array.isArray(value["@type"]) ? value["@type"] : [value["@type"]];
+    if (types.includes("Event")) {
+      const key = value["@id"] ?? value.url ?? value.name;
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        events.push(value);
+      }
+      return;
+    }
+    for (const child of Object.values(value)) {
+      if (Array.isArray(child)) child.forEach(visit);
+      else visit(child);
+    }
+  };
+
   for (const raw of scripts) {
     try {
       const parsed = JSON.parse(raw);
-      const values = Array.isArray(parsed) ? parsed : parsed?.["@graph"] ?? [parsed];
-      for (const value of values) if (value?.["@type"] === "Event") events.push(value);
+      visit(parsed);
     } catch {
       // Skip a malformed script; other events can still be collected.
     }
