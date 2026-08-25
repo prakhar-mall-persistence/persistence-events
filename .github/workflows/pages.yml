@@ -5,6 +5,9 @@ name: Deploy dashboard to Pages
 # trigger, and on every push to main.
 
 on:
+  workflow_run:
+    workflows: ["Scrape events", "Send daily newsletter"]
+    types: [completed]
   schedule:
     - cron: "0 2 * * *" # after the 01:00 UTC scrape
     - cron: "0 8 * * *" # after the 07:00 UTC scrape
