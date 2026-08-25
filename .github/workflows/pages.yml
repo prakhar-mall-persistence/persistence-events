@@ -1,0 +1,59 @@
+name: Deploy dashboard to Pages
+
+# Builds the static dashboard (data baked from Neon at build time) and
+# publishes it to GitHub Pages. Runs after each scheduled scrape, on manual
+# trigger, and on every push to main.
+
+on:
+  schedule:
+    - cron: "0 2 * * *" # after the 01:00 UTC scrape
+    - cron: "0 8 * * *" # after the 07:00 UTC scrape
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Export data from Neon
+        run: pnpm --filter @pe/web export-data
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - name: Build static site
+        run: pnpm --filter @pe/web build
+        env:
+          NEXT_PUBLIC_BASE_PATH: /persistence-events
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
