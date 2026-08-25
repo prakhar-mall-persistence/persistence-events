@@ -1,0 +1,15 @@
+{
+  "name": "persistence-events",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Event scraper + daily ICP-ranked newsletter + dashboard for Persistence",
+  "packageManager": "pnpm@9.7.0",
+  "workspaces": ["shared", "scraper", "web"],
+  "scripts": {
+    "db:push": "pnpm --filter @pe/shared db:push",
+    "db:seed": "pnpm --filter @pe/shared db:seed",
+    "scrape": "pnpm --filter @pe/scraper start",
+    "newsletter": "pnpm --filter @pe/scraper newsletter",
+    "web:dev": "pnpm --filter @pe/web dev"
+  }
+}

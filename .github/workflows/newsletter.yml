@@ -1,0 +1,38 @@
+name: Send daily newsletter
+
+on:
+  schedule:
+    # 04:45 UTC == 10:15 IST
+    - cron: "45 4 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Render without sending"
+        type: boolean
+        default: false
+
+concurrency:
+  group: newsletter
+  cancel-in-progress: false
+
+jobs:
+  newsletter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      KIT_API_KEY: ${{ secrets.KIT_API_KEY }}
+      KIT_SUBSCRIBER_TAG_ID: ${{ secrets.KIT_SUBSCRIBER_TAG_ID }}
+      DASHBOARD_URL: ${{ secrets.DASHBOARD_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Send newsletter
+        run: pnpm newsletter ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '-- --dry-run' || '' }}

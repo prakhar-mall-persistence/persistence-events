@@ -1,0 +1,33 @@
+name: Scrape events
+
+on:
+  schedule:
+    # Nightly 01:00 UTC (06:30 IST) and midday 07:00 UTC (12:30 IST)
+    - cron: "0 1 * * *"
+    - cron: "0 7 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: scrape
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      EVENTBRITE_TOKEN: ${{ secrets.EVENTBRITE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @pe/scraper exec playwright install --with-deps chromium
+      - run: pnpm scrape
