@@ -2,6 +2,8 @@
 const nextConfig = {
   // Static export for GitHub Pages. NEXT_PUBLIC_BASE_PATH is "/<repo>" in CI.
   output: "export",
+  // GitHub Pages serves directory indexes, not extensionless HTML files.
+  trailingSlash: true,
   basePath: process.env.NEXT_PUBLIC_BASE_PATH || "",
   images: { unoptimized: true },
   transpilePackages: ["@pe/shared"],
