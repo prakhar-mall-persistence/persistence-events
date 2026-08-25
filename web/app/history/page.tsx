@@ -1,26 +1,10 @@
-import { db, schema } from "@pe/shared";
-import { desc } from "drizzle-orm";
+import { RUNS } from "@/lib/staticData";
 import { fmtDateTime } from "@/lib/format";
 
-export const dynamic = "force-dynamic";
-
-export default async function HistoryPage() {
-  const runs = await db
-    .select()
-    .from(schema.newsletterRuns)
-    .orderBy(desc(schema.newsletterRuns.sentAt))
-    .limit(90);
-
+export default function HistoryPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-bold">Newsletter history</h1>
-      <a
-        href="/api/newsletter/preview"
-        target="_blank"
-        className="inline-block text-sm text-brand underline"
-      >
-        Preview today’s newsletter →
-      </a>
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-slate-100 dark:bg-slate-900 text-slate-500 text-left">
@@ -33,7 +17,7 @@ export default async function HistoryPage() {
             </tr>
           </thead>
           <tbody>
-            {runs.map((r) => (
+            {RUNS.map((r) => (
               <tr key={r.id} className="border-t border-slate-100 dark:border-slate-800">
                 <td className="px-4 py-2">{r.runDate}</td>
                 <td className="px-4 py-2">
@@ -55,7 +39,7 @@ export default async function HistoryPage() {
                 <td className="px-4 py-2 text-slate-500">{fmtDateTime(r.sentAt)}</td>
               </tr>
             ))}
-            {runs.length === 0 && (
+            {RUNS.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
                   No newsletters sent yet.

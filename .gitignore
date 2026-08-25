@@ -9,3 +9,4 @@ build/
 .cache/
 scraper/.cache/
 coverage/
+out/

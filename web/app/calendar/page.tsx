@@ -1,25 +1,26 @@
-import { getEvents } from "@/lib/queries";
+import { EVENTS, META } from "@/lib/staticData";
 import { CATEGORY_COLORS } from "@/lib/format";
 
-export const dynamic = "force-dynamic";
-
-export default async function CalendarPage() {
-  const now = new Date();
+// Static export: the month grid is computed from the data snapshot's timestamp
+// (the site is rebuilt daily, so this tracks the current month).
+export default function CalendarPage() {
+  const now = new Date(META.generatedAt);
   const year = now.getFullYear();
   const month = now.getMonth();
   const first = new Date(year, month, 1);
   const startDay = first.getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const last = new Date(year, month + 1, 0, 23, 59);
 
-  const events = await getEvents(
-    { from: first.toISOString(), to: new Date(year, month + 1, 0, 23, 59).toISOString(), sort: "date" },
-    500
-  );
+  const events = EVENTS.filter((e) => {
+    if (!e.startAt) return false;
+    const d = new Date(e.startAt);
+    return d >= first && d <= last;
+  }).sort((a, b) => a.startAt!.localeCompare(b.startAt!));
 
   const byDay = new Map<number, typeof events>();
   for (const e of events) {
-    if (!e.startAt) continue;
-    const d = new Date(e.startAt).getDate();
+    const d = new Date(e.startAt!).getDate();
     (byDay.get(d) ?? byDay.set(d, []).get(d)!).push(e);
   }
 
